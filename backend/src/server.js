@@ -12,6 +12,14 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'beer-thunder-backend' });
 });
 
+app.get('/', (req, res) => {
+  res.json({
+    service: 'beer-thunder-backend',
+    status: 'ok',
+    endpoints: { health: '/health', tasks: '/api/tasks' },
+  });
+});
+
 app.use('/api/tasks', tasksRouter);
 
 app.use((req, res) => {
