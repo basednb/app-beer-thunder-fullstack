@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: beer-thunder-backend
+    env: docker
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      - key: DB_PATH
+        value: /app/data/beerthunder.sqlite
+    disk:
+      name: beer-thunder-data
+      mountPath: /app/data
+      sizeGB: 1
