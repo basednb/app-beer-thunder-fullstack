@@ -1,0 +1,40 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: beer-thunder-backend
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DB_PATH: /app/data/beerthunder.sqlite
+    volumes:
+      - backend_data:/app/data
+    restart: unless-stopped
+    networks:
+      - beer-thunder-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3000
+    container_name: beer-thunder-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - beer-thunder-net
+
+volumes:
+  backend_data:
+    name: beer-thunder-data
+
+networks:
+  beer-thunder-net:
+    name: beer-thunder-net
+    driver: bridge
