@@ -4,9 +4,13 @@ import TaskList from './components/TaskList';
 import { createTask, deleteTask, fetchTasks, updateTask } from './api/tasksApi';
 import './App.css';
 
+const WAKE_UP_ATTEMPTS = 10;
+const WAKE_UP_RETRY_MS = 5000;
+
 export default function App() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [waking, setWaking] = useState(false);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('todas');
 
@@ -15,31 +19,60 @@ export default function App() {
   }, []);
 
   async function loadTasks() {
-    try {
-      setLoading(true);
-      const data = await fetchTasks();
-      setTasks(data);
-      setError(null);
-    } catch (err) {
-      setError('Não foi possível conectar ao servidor. O trovão está em silêncio ⚡');
-    } finally {
-      setLoading(false);
+    setLoading(true);
+    setWaking(false);
+    setError(null);
+
+    for (let attempt = 1; attempt <= WAKE_UP_ATTEMPTS; attempt++) {
+      try {
+        const data = await fetchTasks();
+        setTasks(data);
+        setError(null);
+        setWaking(false);
+        setLoading(false);
+        return;
+      } catch (err) {
+        if (attempt === WAKE_UP_ATTEMPTS) {
+          setError('Não foi possível conectar ao servidor. O trovão está em silêncio ⚡');
+          setWaking(false);
+          setLoading(false);
+          return;
+        }
+        setWaking(true);
+        await new Promise((resolve) => setTimeout(resolve, WAKE_UP_RETRY_MS));
+      }
     }
   }
 
   async function handleCreate({ titulo, prioridade }) {
-    const created = await createTask({ titulo, prioridade });
-    setTasks((prev) => [created, ...prev]);
+    try {
+      const created = await createTask({ titulo, prioridade });
+      setTasks((prev) => [created, ...prev]);
+      setError(null);
+    } catch (err) {
+      setError('Não foi possível salvar a tarefa. Tente novamente em instantes ⚡');
+      throw err;
+    }
   }
 
   async function handleToggle(task) {
-    const updated = await updateTask(task.id, { status_concluido: !task.status_concluido });
-    setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+    try {
+      const updated = await updateTask(task.id, { status_concluido: !task.status_concluido });
+      setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      setError(null);
+    } catch (err) {
+      setError('Não foi possível atualizar a tarefa. Tente novamente em instantes ⚡');
+    }
   }
 
   async function handleDelete(id) {
-    await deleteTask(id);
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+    try {
+      await deleteTask(id);
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+      setError(null);
+    } catch (err) {
+      setError('Não foi possível remover a tarefa. Tente novamente em instantes ⚡');
+    }
   }
 
   const filteredTasks = useMemo(() => {
@@ -88,7 +121,10 @@ export default function App() {
           <span className="app__counter">{pendingCount} pendente(s)</span>
         </div>
 
-        {loading && <p className="app__status">Carregando tempestade…</p>}
+        {loading && waking && (
+          <p className="app__status">Acordando o servidor, isso pode levar até 1 minuto… ⚡</p>
+        )}
+        {loading && !waking && <p className="app__status">Carregando tempestade…</p>}
         {error && <p className="app__status app__status--error">{error}</p>}
 
         {!loading && !error && (
